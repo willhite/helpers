@@ -85,7 +85,6 @@ async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
 
 
 async def set_really_scary_features(company_id, switch):
-    logging.NOCOMMIT("company_id: %s, switch: %s", company_id, switch)
     async with data.task.WriteTask(proto.db.USERS) as task:
         await task.connect_to_id(company_id)
         c = await data.company.read_in_task(task, company_id)
