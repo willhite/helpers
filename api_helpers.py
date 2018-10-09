@@ -21,13 +21,18 @@ class StubResponse(core.http.HTTPServerResponse):
         print(json.dumps(value, indent=4))
         return
 
+    async def write(self, chunk, done=True, log_message=None, enable_etag=True, subcategory=None):
+        print("len(chunk):", len(chunk))
+        return
+
 
 async def initwork(company=None):
     global admin_company, admin_user, user
 
     if company == "fb-testing":
         user_email = "gorle@thefacebook.com"  # Sandeep -- fYOAEAoMJRe
-        admin_user_email = "fbsupport@onna.com"  # Vikas -- QeLAEAB83er
+        # admin_user_email = "fbsupport@onna.com"  # Vikas -- QeLAEAB83er
+        admin_user_email = "equip@atlasense.com" # Onna Dev Team -- GLLAEAzEEU6
         admin_company_domain = "onna.com"  # Quip-Fb-Testing -- LeWAcAlW86u
     elif company == "fb":
         user_email = "khajanchi@fb.com"  # Vikas -- QeLAEAB83er
@@ -35,15 +40,20 @@ async def initwork(company=None):
         admin_company_domain = "fb.com"  # fb.com -- TXZAcAZ6Xs4
     else:  # docker
         user_email = "huy@quip.com"  # Huy Nguyen -- eJHAEATIfS7
-        admin_user_email = "jonmac@quip.com"  # Dan -- dKWAEApvV4V
+        admin_user_email = "dwillhite@quip.com"  # Dan -- dKWAEApvV4V
         admin_company_domain = "quip.com"  # quip.com -- FTGAcAzRzdg
 
     admin_company = (await data.company.get_by_domain(admin_company_domain))[0]
-    admin_user = await data.users.get_by_email_login(admin_user_email)
+    admin_user = await get_user(admin_user_email, company_id=admin_company.id)
     user = await data.users.get_by_email_login(user_email)
 
 
-async def get_user(email):
+async def get_user(email, company_id=None):
+    if company_id:
+        all_users = await data.users.get_multiple_by_email(email)
+        users = list(filter(lambda x: x.company_id == company_id, all_users))
+        if len(users) > 0:
+            return users[0]
     return await data.users.data.users.get_by_email_login(admin_user.id)
 
 
@@ -79,9 +89,18 @@ async def get_admin_threads_endpoint(thread_id, req=None, args=None):
 async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
     bg = services.platform.AdminBlobGet()
     r = req if req else await build_request()
+    r
     r.arguments = args if args is not None else {"company_id": [admin_company.id]}
     res = StubResponse(None)
     await bg.get(r, res, thread_id, blob_id)
+
+
+async def get_threads_endpoint(thread_id, req=None, args=None):
+    bg = services.platform.ThreadsGet()
+    r = req if req else await build_request()
+    r.arguments = args if args is not None else {}
+    res = StubResponse(None)
+    await bg.get(r, res, thread_id)
 
 
 async def set_really_scary_features(company_id, switch):
