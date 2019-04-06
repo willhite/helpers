@@ -8,10 +8,6 @@ import services
 
 admin_company = None
 admin_user = None
-user = None
-
-# admin_company, admin_user, user = await initwork()
-
 
 class StubResponse(core.http.HTTPServerResponse):
     def __init__(self, connection: "core.io.Socket") -> None:
@@ -27,7 +23,7 @@ class StubResponse(core.http.HTTPServerResponse):
 
 
 async def initwork(company=None):
-    global admin_company, admin_user, user
+    global admin_company, admin_user
 
     if company == "fb-testing":
         user_email = "gorle@thefacebook.com"  # Sandeep -- fYOAEAoMJRe
@@ -46,6 +42,15 @@ async def initwork(company=None):
     admin_company = (await data.company.get_by_domain(admin_company_domain))[0]
     admin_user = await get_user(admin_user_email, company_id=admin_company.id)
     user = await data.users.get_by_email_login(user_email)
+
+
+async def set_info(user_id, company_id):
+    global admin_company, admin_user
+    if user_id:
+        admin_user = await data.users.read(user_id)
+    if company_id:
+        admin_company = await data.company.read(company_id)
+    return admin_user, admin_company
 
 
 async def get_user(email, company_id=None):
@@ -84,6 +89,14 @@ async def get_admin_threads_endpoint(thread_id, req=None, args=None):
     r.arguments = args if args is not None else {"company_id": [admin_company.id]}
     res = StubResponse(None)
     await tg.get(r, res, thread_id)
+
+
+async def post_admin_threads_list_endpoint(req=None, args=None):
+    tg = services.platform.AdminThreadsList()
+    r = req if req else await build_request()
+    r.arguments = args if args is not None else {"company_id": [admin_company.id]}
+    res = StubResponse(None)
+    await tg.post(r, res)
 
 
 async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
