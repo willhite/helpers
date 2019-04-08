@@ -75,11 +75,11 @@ async def build_request(user=None, company=None):
     return r
 
 
-async def admin_company_args(args):
+def admin_company_args(args):
     if args is None:
         args = {}
     if "company_id" not in args:
-        args["company_id"] = admin_company.id
+        args["company_id"] = [admin_company.id]
     return args
 
 
