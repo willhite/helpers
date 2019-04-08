@@ -75,10 +75,20 @@ async def build_request(user=None, company=None):
     return r
 
 
+async def admin_company_args(args):
+    if args is None:
+        args = {}
+    if "company_id" not in args:
+        args["company_id"] = admin_company.id
+    return args
+
+
 async def get_admin_users_endpoint(user_id, req=None, args=None):
     ug = services.platform.AdminUsersGet()
     r = req if req else await build_request()
-    r.arguments = args if args is not None else {"include_deleted": ["1"], "threads_meta": ["1"], "company_id": [admin_company.id]}
+    if args is None:
+        args = {"include_deleted": ["1"], "threads_meta": ["1"]}
+    r.arguments = admin_company_args(args)
     res = StubResponse(None)
     await ug.get(r, res, user_id)
 
@@ -86,7 +96,7 @@ async def get_admin_users_endpoint(user_id, req=None, args=None):
 async def get_admin_threads_endpoint(thread_id, req=None, args=None):
     tg = services.platform.AdminThreadsGet()
     r = req if req else await build_request()
-    r.arguments = args if args is not None else {"company_id": [admin_company.id]}
+    r.arguments = admin_company_args(args)
     res = StubResponse(None)
     await tg.get(r, res, thread_id)
 
@@ -94,7 +104,7 @@ async def get_admin_threads_endpoint(thread_id, req=None, args=None):
 async def post_admin_threads_list_endpoint(req=None, args=None):
     tg = services.platform.AdminThreadsList()
     r = req if req else await build_request()
-    r.arguments = args if args is not None else {"company_id": [admin_company.id]}
+    r.arguments = admin_company_args(args)
     res = StubResponse(None)
     await tg.post(r, res)
 
@@ -102,8 +112,7 @@ async def post_admin_threads_list_endpoint(req=None, args=None):
 async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
     bg = services.platform.AdminBlobGet()
     r = req if req else await build_request()
-    r
-    r.arguments = args if args is not None else {"company_id": [admin_company.id]}
+    r.arguments = admin_company_args(args)
     res = StubResponse(None)
     await bg.get(r, res, thread_id, blob_id)
 
