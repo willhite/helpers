@@ -8,12 +8,16 @@ import services
 
 admin_company = None
 admin_user = None
+last_result = None
+
 
 class StubResponse(core.http.HTTPServerResponse):
     def __init__(self, connection: "core.io.Socket") -> None:
         core.http.HTTPServerResponse.__init__(self, connection)
 
     async def write_json(self, value, **kwargs):
+        global last_result
+        last_result = value
         print(json.dumps(value, indent=4))
         return
 
@@ -84,37 +88,45 @@ def admin_company_args(args):
 
 
 async def get_admin_users_endpoint(user_id, req=None, args=None):
-    ug = services.platform.AdminUsersGet()
+    ep = services.platform.AdminUsersGet()
     r = req if req else await build_request()
     if args is None:
         args = {"include_deleted": ["1"], "threads_meta": ["1"]}
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
-    await ug.get(r, res, user_id)
+    await ep.get(r, res, user_id)
 
 
 async def get_admin_threads_endpoint(thread_id, req=None, args=None):
-    tg = services.platform.AdminThreadsGet()
+    ep = services.platform.AdminThreadsGet()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
-    await tg.get(r, res, thread_id)
+    await ep.get(r, res, thread_id)
 
 
 async def post_admin_threads_list_endpoint(req=None, args=None):
-    tg = services.platform.AdminThreadsList()
+    ep = services.platform.AdminThreadsList()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
-    await tg.post(r, res)
+    await ep.post(r, res)
 
 
 async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
-    bg = services.platform.AdminBlobGet()
+    ep = services.platform.AdminBlobGet()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
-    await bg.get(r, res, thread_id, blob_id)
+    await ep.get(r, res, thread_id, blob_id)
+
+
+async def post_admin_quarantine_endpoint(req=None, args=None):
+    ep = services.platform.AdminQuarantine()
+    r = req if req else await build_request()
+    r.arguments = admin_company_args(args)
+    res = StubResponse(None)
+    await ep.post(r, res)
 
 
 async def get_threads_endpoint(thread_id, req=None, args=None):
