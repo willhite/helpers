@@ -1,10 +1,13 @@
 import core.http
 import core.io
 import data.users
+import datetime
 import json
+import lib.integrations
 import logging
 import proto
 import services
+import users.proto
 
 admin_company = None
 admin_user = None
@@ -143,3 +146,17 @@ async def set_really_scary_features(company_id, switch):
         c = await data.company.read_in_task(task, company_id)
         c.really_enable_scary_audit_features = switch
         await data.company.update(task, c)
+
+
+async def add_integration_to_thread(thread):
+    tracer_user = data.users.get_robot_id(name="bootstrap")
+    core.runtime.set_tracer(data.tcache.build_tracer_from_context(
+        proto.tracer.Context(loop_name="bootstrap_private_cluster")))
+    integration = await lib.integrations.create_integration(
+        tracer_user, thread.id,
+        proto.threads.IntegrationEnum.ACCESS_TOKEN)
+    integration_user = await data.users.read(integration.id)
+    session = await data.user_sessions.start_session(
+        integration_user, None, None, proto.users.Session.PLATFORM,
+        proto.users.Session.PLATFORM_OAUTH,
+        length=datetime.timedelta(days=31))
