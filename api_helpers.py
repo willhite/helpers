@@ -148,8 +148,14 @@ async def set_really_scary_features(company_id, switch):
         await data.company.update(task, c)
 
 
-async def add_integration_to_thread(thread):
-    tracer_user = data.users.get_robot_id(name="bootstrap")
+# Do this before executing in bin/interactive
+# dw = await data.users.get_by_email_login("dwillhite@quip.com")
+# set_tracer_user(dw)
+# data.users.options.require_user_creation_provisioned = False
+async def add_integration_to_admin_api_users_log():
+    thread = data.access.lookup_secret_path('KU9aAjA4BP2x')
+    tracer_user_id = data.users.get_robot_id(name="bootstrap")
+    tracer_user = await data.users.read(tracer_user_id)
     core.runtime.set_tracer(data.tcache.build_tracer_from_context(
         proto.tracer.Context(loop_name="bootstrap_private_cluster")))
     integration = await lib.integrations.create_integration(
