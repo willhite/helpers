@@ -7,7 +7,6 @@ import lib.integrations
 import logging
 import proto
 import services
-import users.proto
 
 admin_company = None
 admin_user = None
@@ -35,7 +34,7 @@ async def initwork(company=None):
     if company == "fb-testing":
         user_email = "gorle@thefacebook.com"  # Sandeep -- fYOAEAoMJRe
         # admin_user_email = "fbsupport@onna.com"  # Vikas -- QeLAEAB83er
-        admin_user_email = "equip@atlasense.com" # Onna Dev Team -- GLLAEAzEEU6
+        admin_user_email = "equip@atlasense.com"  # Onna Dev Team -- GLLAEAzEEU6
         admin_company_domain = "onna.com"  # Quip-Fb-Testing -- LeWAcAlW86u
     elif company == "fb":
         user_email = "khajanchi@fb.com"  # Vikas -- QeLAEAB83er
@@ -116,6 +115,22 @@ async def post_admin_threads_list_endpoint(req=None, args=None):
     await ep.post(r, res)
 
 
+async def post_admin_threads_add_members_endpoint(req=None, args=None):
+    ep = services.platform.AdminThreadsAddMembers()
+    r = req if req else await build_request()
+    r.arguments = admin_company_args(args)
+    res = StubResponse(None)
+    await ep.post(r, res)
+
+
+async def delete_admin_message_delete_endpoint(req=None, args=None):
+    ep = services.platform.AdminMessageDelete()
+    r = req if req else await build_request()
+    r.arguments = admin_company_args(args)
+    res = StubResponse(None)
+    await ep.post(r, res)
+
+
 async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
     ep = services.platform.AdminBlobGet()
     r = req if req else await build_request()
@@ -149,15 +164,20 @@ async def set_really_scary_features(company_id, switch):
 
 
 # Do this before executing in bin/interactive
-# dw = await data.users.get_by_email_login("dwillhite@quip.com")
+# dw = a(data.users.get_by_email_login("dwillhite@quip.com"))
 # set_tracer_user(dw)
-# data.users.options.require_user_creation_provisioned = False
-async def add_integration_to_admin_api_users_log():
-    thread = data.access.lookup_secret_path('KU9aAjA4BP2x')
-    tracer_user_id = data.users.get_robot_id(name="bootstrap")
-    tracer_user = await data.users.read(tracer_user_id)
-    core.runtime.set_tracer(data.tcache.build_tracer_from_context(
-        proto.tracer.Context(loop_name="bootstrap_private_cluster")))
+# # data.users.options.require_user_creation_provisioned = False
+# # thread_id = await data.access.lookup_secret_path("KU9aAjA4BP2x")
+# thread_id = "fbRAAAkwNPS"
+async def add_integration_to_thread(thread_id):
+    thread = await data.threads.read(thread_id)
+    # tracer_user_id = data.users.get_robot_id(name="bootstrap")
+    # tracer_user = await data.users.read(tracer_user_id)
+    # core.runtime.set_tracer(data.tcache.build_tracer_from_context(
+    #     proto.tracer.Context(loop_name="bootstrap_private_cluster")))
+    tracer_user = await core.tracer.get_user()
+    t_user_id = tracer_user.id if tracer_user else None
+    logging.NOCOMMIT(f"user_id: {t_user_id}")
     integration = await lib.integrations.create_integration(
         tracer_user, thread.id,
         proto.threads.IntegrationEnum.ACCESS_TOKEN)
