@@ -155,6 +155,14 @@ async def get_threads_endpoint(thread_id, req=None, args=None):
     await bg.get(r, res, thread_id)
 
 
+async def post_admin_edit_link_settings_endpoint(req=None, args=None):
+    bg = services.platform.AdminThreadsEditShareLinkSettings()
+    r = req if req else await build_request()
+    r.arguments = admin_company_args(args)
+    res = StubResponse(None)
+    await bg.post(r, res)
+
+
 async def set_really_scary_features(company_id, switch):
     async with data.task.WriteTask(proto.db.USERS) as task:
         await task.connect_to_id(company_id)
