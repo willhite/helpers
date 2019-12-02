@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List, Set
 
 import core.http
 import core.io
@@ -40,6 +40,7 @@ barry_report_id = "00O300000098euGEAQ"
 barry_id = "bWcAEA9EKx3"
 merwan_id = "PRIAEAGK65v"
 quip_id = "DYTAcAiIFUr" if core.realm.any_prod() else "FTGAcAzRzdg"
+sfdc_id = "fPQAcAPz5E9"
 dw_id = "efOAEA5zZKu" if core.realm.any_prod() else "dKWAEApvV4V"
 anna_thread_id = "FXCAAA4wjYT" if core.realm.any_prod() else "aXEAAApr9IC"
 anna_id= "efPAEAVKk4k"
@@ -165,7 +166,7 @@ def get_default_alerts() -> List[proto.salesforce.Alert]:
         ),
     ]
 
-async def monitor_subscriptions() -> None:
+async def monitor_subscriptions(enabled_only: bool=True) -> Dict[str, List[str]]:
     thread_ids = await lib.sfdc_record_subscriptions.all_subscribed_thread_ids()
     threads_dict = await data.threads.read_multi(thread_ids)
     threads = list(threads_dict.values())
@@ -174,21 +175,87 @@ async def monitor_subscriptions() -> None:
         for s in thread.salesforce_record_subscriptions:
             pairs.append((thread.id, s.subscription_id,))
 
+    cached_ids = {}
     for tid, sid in sorted(pairs):
         thread = threads_dict[tid]
         s = next((sub for sub in thread.salesforce_record_subscriptions if sub.subscription_id == sid), None)
         if not s:
             print(f"thread: {tid}, missing sub: {sid}")
             continue
+        if not s.enabled and enabled_only:
+            continue
+
+        cache = await lib.sfdc_record_subscriptions.get_record_ids_for_subscription(sid)
+        cached_ids[sid] = set(cache)
         rs = s.record_space
         if rs.HasField("report_record_space"):
-            print(f"REPORT thread: {thread.title}({tid}), sid: {sid}, enabled: {s.enabled}, time: {core.utc.datetime_from_usec(rs.report_record_space.cache_updated_usec)}")
+            print(f"REPORT thread: {thread.title}({tid}), sid: {sid}({len(cache)}), enabled: {s.enabled}, time: {core.utc.datetime_from_usec(rs.report_record_space.cache_updated_usec)}")
         elif rs.HasField("listview_record_space"):
-            print(f"LISTVIEW thread: {thread.title}({tid}), sid: {sid}, enabled: {s.enabled}, time: {core.utc.datetime_from_usec(rs.listview_record_space.cache_updated_usec)}")
+            print(f"LISTVIEW thread: {thread.title}({tid}), sid: {sid}({len(cache)}), enabled: {s.enabled}, time: {core.utc.datetime_from_usec(rs.listview_record_space.cache_updated_usec)}")
         elif rs.HasField("explicit_record_space"):
-            print(f"EXPLICIT thread: {thread.title}({tid}), sid: {sid}, enabled: {s.enabled}")
+            print(f"EXPLICIT thread: {thread.title}({tid}), sid: {sid}({len(cache)}), enabled: {s.enabled}")
         elif rs.HasField("filter_record_space"):
-            print(f"FILTER thread: {thread.title}({tid}), sid: {sid}, enabled: {s.enabled}")
+            print(f"FILTER thread: {thread.title}({tid}), sid: {sid}({len(cache)}), enabled: {s.enabled}")
         else:
             print(f"UNKNOWN tid: {tid}, sub: {s}")
+    return cached_ids
 
+async def collect_cdc_cache_keys(new_style=True) -> Set[str]:
+    keys = set()
+    pattern = "salesforce_cdc_record:0:*:*:*" if new_style else "salesforce_cdc_record:0:??????????????????:??????????????????"
+    ch = data.redis_host_map.get_chain_for_shortname("redis-0")
+    cursor = b"0"
+    while True:
+        cursor, results = await ch.scan(cursor, pattern, 100000)
+        print(f"cursor: {cursor.decode()}, len(results): {len(results)}, len(keys): {len(keys)}")
+        keys.update(set(results))
+        if cursor == b"0":
+            break
+    return keys
+
+async def update_cdc_streams_on_company(
+        company_id: str, org_id: str, streams: List[str]) -> proto.teams.Company:
+    async with data.task.WriteTask(proto.db.USERS) as task:
+        await task.connect_to_id(company_id)
+        c = await data.company.read_in_task(task, company_id)
+        sub = next((sub for sub in c.salesforce_orgs_data
+                    if sub.organization_id == org_id), None)
+        del sub.salesforce_cdc_streams[:]
+        if streams:
+            sub.salesforce_cdc_streams.extend(streams)
+        return await data.company.update(task, c)
+
+async def update_org62_streams(company_id, org_id="00D000000000062EAA") -> proto.teams.Company:
+    if core.realm.any_local():
+        streams = [
+            "/data/AccountChangeEvent",
+            "/data/LeadChangeEvent",
+            "/data/OpportunityChangeEvent",
+            # "/data/AgentWork__cChangeEvent",  # Quote
+        ]
+    else:
+        streams = [
+            "Opportunity",
+            "Lead",
+            "Account",
+            "Case",
+            "Contact",
+            "Contract",
+            "ContractLineItem",
+            "sfbase__SalesforceTeam__c",  # Salesforce Team
+            "Apttus_Proposal__Proposal__c",  # Quote
+            "User",
+        ]
+    return await update_cdc_streams_on_company(company_id, org_id, streams)
+
+import lite.git
+def order_commit_hashes(cherrypicks: Set[str]) -> List[str]:
+    args = ["git", "log", "-n2000", "--format=format:%H"]
+    commits = lite.git._run(args).split("\n")
+    try:
+        indexed_picks = [(commits.index(cp), cp) for cp in cherrypicks]
+        picks = list(reversed(sorted(indexed_picks)))
+    except Exception as exc:
+        print(exc)
+        return None
+    return [cpt[1] for cpt in picks]

@@ -7,6 +7,7 @@ import lib.integrations
 import logging
 import proto
 import services
+import services.platform_admin
 
 admin_company = None
 admin_user = None
@@ -90,7 +91,7 @@ def admin_company_args(args):
 
 
 async def get_admin_users_endpoint(user_id, req=None, args=None):
-    ep = services.platform.AdminUsersGet()
+    ep = services.platform_admin.AdminUsersGet()
     r = req if req else await build_request()
     if args is None:
         args = {"include_deleted": ["1"], "threads_meta": ["1"]}
@@ -100,7 +101,7 @@ async def get_admin_users_endpoint(user_id, req=None, args=None):
 
 
 async def get_admin_threads_endpoint(thread_id, req=None, args=None):
-    ep = services.platform.AdminThreadsGet()
+    ep = services.platform_admin.AdminThreadsGet()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
@@ -108,7 +109,7 @@ async def get_admin_threads_endpoint(thread_id, req=None, args=None):
 
 
 async def post_admin_threads_list_endpoint(req=None, args=None):
-    ep = services.platform.AdminThreadsList()
+    ep = services.platform_admin.AdminThreadsList()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
@@ -124,7 +125,7 @@ async def post_admin_threads_add_members_endpoint(req=None, args=None):
 
 
 async def delete_admin_message_delete_endpoint(req=None, args=None):
-    ep = services.platform.AdminMessageDelete()
+    ep = services.platform_admin.AdminMessageDelete()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
@@ -132,7 +133,7 @@ async def delete_admin_message_delete_endpoint(req=None, args=None):
 
 
 async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
-    ep = services.platform.AdminBlobGet()
+    ep = services.platform_admin.AdminBlobGet()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
@@ -140,7 +141,7 @@ async def get_admin_blob_endpoint(thread_id, blob_id, req=None, args=None):
 
 
 async def post_admin_quarantine_endpoint(req=None, args=None):
-    ep = services.platform.AdminQuarantine()
+    ep = services.platform_admin.AdminQuarantine()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
@@ -156,7 +157,7 @@ async def get_threads_endpoint(thread_id, req=None, args=None):
 
 
 async def post_admin_edit_link_settings_endpoint(req=None, args=None):
-    bg = services.platform.AdminThreadsEditShareLinkSettings()
+    bg = services.platform_admin.AdminThreadsEditShareLinkSettings()
     r = req if req else await build_request()
     r.arguments = admin_company_args(args)
     res = StubResponse(None)
